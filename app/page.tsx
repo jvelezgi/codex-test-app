@@ -1,65 +1,96 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import Head from "next/head";
+import { useEffect, useMemo, useState } from "react";
+
+import { TodoInput } from "../components/TodoInput";
+import { TodoItem } from "../components/TodoItem";
+import type { Todo } from "../types/todo";
+
+const createTodo = (text: string): Todo => ({
+  id: typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  text,
+  isCompleted: false,
+});
+
+export default function HomePage() {
+  const [todos, setTodos] = useState<Todo[]>([]);
+
+  useEffect(() => {
+    // Registro del Service Worker para habilitar capacidades PWA.
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .catch((error) => {
+          console.error("Error al registrar el Service Worker", error);
+        });
+    }
+  }, []);
+
+  const remainingTodos = useMemo(
+    () => todos.filter((todo) => !todo.isCompleted).length,
+    [todos],
+  );
+
+  const addTodo = (text: string) => {
+    setTodos((previous) => [...previous, createTodo(text)]);
+  };
+
+  const toggleTodo = (id: string) => {
+    setTodos((previous) =>
+      previous.map((todo) =>
+        todo.id === id ? { ...todo, isCompleted: !todo.isCompleted } : todo,
+      ),
+    );
+  };
+
+  const deleteTodo = (id: string) => {
+    setTodos((previous) => previous.filter((todo) => todo.id !== id));
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+    <>
+      <Head>
+        <title>To-Do List PWA</title>
+        <meta name="description" content="Una lista de tareas moderna desarrollada con Next.js" />
+        <meta name="theme-color" content="#4338ca" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+      </Head>
+      <main className="min-h-dvh bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 px-4 py-16 text-slate-50">
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 rounded-xl bg-white/10 p-8 shadow-2xl backdrop-blur">
+          <header className="flex flex-col gap-2 text-center">
+            <p className="text-sm uppercase tracking-[0.35em] text-indigo-200">Organiza tu día</p>
+            <h1 className="text-3xl font-bold text-white sm:text-4xl">Tu lista de tareas inteligente</h1>
+            <p className="text-sm text-indigo-100">
+              {remainingTodos > 0
+                ? `Te quedan ${remainingTodos} tarea${remainingTodos === 1 ? "" : "s"} por completar.`
+                : "¡Has completado todas tus tareas!"}
+            </p>
+          </header>
+
+          <TodoInput addTodo={addTodo} />
+
+          <ul className="flex flex-col gap-3">
+            {todos.length === 0 ? (
+              <li className="rounded-xl border border-dashed border-indigo-300/50 bg-indigo-50/10 p-6 text-center text-sm text-indigo-100">
+                Añade tus primeras tareas para comenzar a avanzar.
+              </li>
+            ) : (
+              todos.map((todo) => (
+                <TodoItem
+                  key={todo.id}
+                  todo={todo}
+                  toggleTodo={toggleTodo}
+                  deleteTodo={deleteTodo}
+                />
+              ))
+            )}
+          </ul>
         </div>
       </main>
-    </div>
+    </>
   );
 }
